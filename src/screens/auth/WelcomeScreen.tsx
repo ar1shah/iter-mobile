@@ -57,7 +57,7 @@ export function WelcomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.darkBg,
+    backgroundColor: colors.creamBg,
   },
   hero: {
     flex: 1,
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
   marginBottom: 20,
 },
   wordmark: {
-    color: colors.darkText,
+    color: colors.gold,
     fontSize: 42,
     fontWeight: '800',
     letterSpacing: -1.5,
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     marginVertical: 40,
   },
   headline: {
-    color: colors.darkText,
+    color: colors.gold,
     fontSize: 28,
     fontWeight: '700',
     lineHeight: 34,
@@ -131,12 +131,13 @@ const styles = StyleSheet.create({
     height: 54,
     borderRadius: 14,
     borderWidth: 1.5,
-    borderColor: 'rgba(216,208,192,0.3)',
+    borderColor: colors.gold,
+    backgroundColor: colors.gold,
     alignItems: 'center',
     justifyContent: 'center',
   },
   signUpLabel: {
-    color: colors.darkText,
+    color: colors.nearBlack,
     fontSize: 16,
     fontWeight: '600',
   },
