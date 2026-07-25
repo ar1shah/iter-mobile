@@ -72,14 +72,8 @@
         isLoading,
 
         signIn: async (email, password) => {
-          setIsLoading(true);
-
-          try {
-            const loggedInUser = await authApi.login(email, password);
-            setUser(loggedInUser);
-          } finally {
-            setIsLoading(false);
-          }
+          const loggedInUser = await authApi.login(email, password);
+          setUser(loggedInUser);
         },
 
         signUp: async (params) => {
