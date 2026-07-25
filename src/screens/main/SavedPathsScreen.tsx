@@ -135,6 +135,9 @@ export function SavedPathsScreen({ navigation }: Props) {
               </View> */}
               <View style={styles.sheetStat}>
                 <Text style={styles.sheetStatLabel}>Saved</Text>
+                <Text style={styles.sheetStatValue}>
+                  {formatLongDate(selectedPath.createdAt)}
+                </Text>
               </View>
             </View>
             <View style={styles.sheetActions}>
