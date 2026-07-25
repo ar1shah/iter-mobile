@@ -4,7 +4,7 @@
 // spacing etc).
 
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, Image } from 'react-native';
 import { colors } from '../theme/colors';
 import { BackArrowIcon, LogoMark } from './icons';
 
@@ -23,7 +23,7 @@ export function NavRow({ onBack, dark = false }: { onBack: () => void; dark?: bo
       </Pressable>
 
       <View style={styles.wordmark}>
-        <LogoMark size={14} />
+        <Image source={require('../../assets/images/logo.png')} style={styles.logoLarge} resizeMode="contain" />
         <Text style={[styles.wordmarkText, { color: wordmarkColor }]}>iter</Text>
       </View>
     </View>
@@ -51,8 +51,12 @@ const styles = StyleSheet.create({
   wordmark: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
     marginLeft: 'auto',
+  },
+  logoLarge: {
+    width: 18,
+    height: 18,
+    marginRight: 6,
   },
   wordmarkText: {
     fontSize: 15,
