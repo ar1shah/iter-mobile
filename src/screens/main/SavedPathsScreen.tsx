@@ -101,7 +101,6 @@ export function SavedPathsScreen({ navigation }: Props) {
                   {/* <View style={styles.dot} />
                   <Text style={styles.pathPoints}>{item.points.length} pts</Text> */}
                 </View>
-                <Text style={styles.pathDate}>Saved {formatLongDate(item.createdAt)}</Text>
               </View>
               <View style={styles.chevronBadge}>
                 <ChevronRightIcon />
@@ -136,7 +135,6 @@ export function SavedPathsScreen({ navigation }: Props) {
               </View> */}
               <View style={styles.sheetStat}>
                 <Text style={styles.sheetStatLabel}>Saved</Text>
-                <Text style={styles.sheetStatValue}>{formatLongDate(selectedPath.createdAt)}</Text>
               </View>
             </View>
             <View style={styles.sheetActions}>

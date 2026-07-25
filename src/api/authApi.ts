@@ -6,30 +6,30 @@ import { tokenStorage, type StoredTokens } from './tokenStorage';
 
 export interface AuthUser {
   id: string;
-  cognitoSub: string;
   email: string;
   username: string;
   name: string;
   createdAt: string;
+  isVerified: boolean;
 }
 
 interface MeResponse {
   _id: string;
-  cognitoSub: string;
   email: string;
   username: string;
   name: string;
   createdAt: string;
+  isVerified?: boolean;
 }
 
 function toAuthUser(me: MeResponse): AuthUser {
   return {
     id: me._id,
-    cognitoSub: me.cognitoSub,
     email: me.email,
     username: me.username,
     name: me.name,
     createdAt: me.createdAt,
+    isVerified: me.isVerified ?? false,
   };
 }
 
@@ -53,21 +53,25 @@ export const authApi = {
     const result = await apiRequest<{
       message: string;
       accessToken: string;
-      idToken: string;
-      refreshToken: string;
     }>('/api/auth/login', {
       method: 'POST',
       body: { email, password },
     });
 
     const tokens: StoredTokens = {
-      idToken: result.idToken,
       accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
     };
+
     await tokenStorage.save(tokens);
 
-    return authApi.getMe();
+    const user = await authApi.getMe();
+
+    if (!user.isVerified) {
+      await tokenStorage.clear();
+      throw new Error('EMAIL_NOT_VERIFIED');
+    }
+
+    return user;
   },
 
   async forgotPassword(email: string): Promise<void> {

@@ -10,7 +10,6 @@ export interface SavedPath {
   name: string;
   points: LatLng[];
   distanceMiles: number;
-  createdAt: string; // ISO date
 }
 
 interface RouteResponse {
@@ -19,7 +18,6 @@ interface RouteResponse {
   routeName: string;
   distanceMiles: number;
   waypoints: [number, number][]; // [lng, lat]
-  createdAt: string;
 }
 
 function fromRoute(route: RouteResponse): SavedPath {
@@ -29,7 +27,6 @@ function fromRoute(route: RouteResponse): SavedPath {
     name: route.routeName,
     points: route.waypoints.map(([lng, lat]) => ({ latitude: lat, longitude: lng })),
     distanceMiles: route.distanceMiles,
-    createdAt: route.createdAt,
   };
 }
 

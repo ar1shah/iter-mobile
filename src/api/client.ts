@@ -29,7 +29,7 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   if (options.auth) {
-    const idToken = await tokenStorage.getIdToken();
+    const idToken = await tokenStorage.getaccessToken();
     if (idToken) headers.Authorization = `Bearer ${idToken}`;
   }
 

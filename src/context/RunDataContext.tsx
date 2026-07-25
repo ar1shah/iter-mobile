@@ -28,34 +28,48 @@ interface RunDataContextValue {
 const RunDataContext = createContext<RunDataContextValue | undefined>(undefined);
 
 export function RunDataProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [savedPaths, setSavedPaths] = useState<SavedPath[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  const refresh = useCallback(async () => {
+const refresh = useCallback(async () => {
     if (!user) {
       setSavedPaths([]);
       setRuns([]);
       return;
     }
+
     setIsLoading(true);
-    try {
-      const [paths, runHistory] = await Promise.all([
-        pathsApi.getSavedPaths(),
-        runsApi.getRuns(),
-      ]);
-      setSavedPaths(paths);
-      setRuns(runHistory);
-    } finally {
-      setIsLoading(false);
+
+    const [pathsResult, runsResult] = await Promise.allSettled([
+      pathsApi.getSavedPaths(),
+      runsApi.getRuns(),
+    ]);
+
+    if (pathsResult.status === 'fulfilled') {
+      setSavedPaths(pathsResult.value);
+    } else {
+      setSavedPaths([]);
     }
+
+    if (runsResult.status === 'fulfilled') {
+      setRuns(runsResult.value);
+    } else {
+      setRuns([]);
+    }
+
+    setIsLoading(false);
   }, [user]);
 
   // Reload whenever the logged-in user changes (login, logout, switching accounts).
   useEffect(() => {
-    refresh();
-  }, [refresh]);
+    if (authLoading) {
+      return;
+    }
+
+    void refresh();
+  }, [authLoading, refresh]);
 
   const addPath = useCallback(
     async (name: string, points: LatLng[]) => {
