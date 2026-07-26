@@ -52,6 +52,31 @@ export const pathsApi = {
     return fromRoute(result.route);
   },
 
+  async searchPaths(query: string): Promise<SavedPath[]> {
+    const trimmedQuery = query.trim();
+
+    // Empty search loads all saved paths
+    if (!trimmedQuery) {
+      return this.getSavedPaths();
+    }
+
+    try {
+      const result = await apiRequest<RouteResponse[] | { routes: RouteResponse[] }>(
+        `/api/routes/search?q=${encodeURIComponent(trimmedQuery)}`,
+        {
+          auth: true,
+        },
+      );
+
+      const routes = Array.isArray(result) ? result : result.routes ?? [];
+
+      return routes.map(fromRoute);
+    } catch (error) {
+      console.error('Error searching routes:', error);
+      return [];
+    }
+  },
+
   async deletePath(id: string): Promise<void> {
     await apiRequest<{ message: string }>(`/api/routes/${id}`, {
       method: 'DELETE',

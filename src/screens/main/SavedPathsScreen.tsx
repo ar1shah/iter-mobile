@@ -1,14 +1,14 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useState } from 'react';
-import { Alert, FlatList, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ChevronRightIcon, LogoMark, PlusIcon, TrashIcon } from '../../components/icons';
+import { ChevronRightIcon, PlusIcon, TrashIcon } from '../../components/icons';
 import { RouteThumbnail } from '../../components/RouteThumbnail';
 import { useRunData } from '../../context/RunDataContext';
 import type { AppStackParamList, MainTabParamList } from '../../navigation/types';
-import type { SavedPath } from '../../api/pathsApi';
+import { pathsApi, type SavedPath } from '../../api/pathsApi';
 import { colors } from '../../theme/colors';
 import { formatLongDate } from '../../utils/date';
 
@@ -19,8 +19,54 @@ type Props = CompositeScreenProps<
 
 export function SavedPathsScreen({ navigation }: Props) {
   const { savedPaths, deletePath } = useRunData();
-  const [selectedPath, setSelectedPath] = useState<SavedPath | null>(null);
+
+  const [selectedPath, setSelectedPath] =
+    useState<SavedPath | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  const [searchText, setSearchText] = useState('');
+  const [displayedPaths, setDisplayedPaths] =
+    useState<SavedPath[]>(savedPaths);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const timer = setTimeout(async () => {
+      const trimmedSearch = searchText.trim();
+
+      if (!trimmedSearch) {
+        setDisplayedPaths(savedPaths);
+        setSearching(false);
+        return;
+      }
+
+      setSearching(true);
+
+      try {
+        const results = await pathsApi.searchPaths(trimmedSearch);
+
+        if (!cancelled) {
+          setDisplayedPaths(results);
+        }
+      } catch (error) {
+        console.error('Could not search paths:', error);
+
+        if (!cancelled) {
+          setDisplayedPaths([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setSearching(false);
+        }
+      }
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchText, savedPaths]);
 
   const handleDelete = (path: SavedPath) => {
     Alert.alert('Delete path?', `"${path.name}" will be removed permanently.`, [
@@ -54,37 +100,74 @@ export function SavedPathsScreen({ navigation }: Props) {
         </View>
         {savedPaths.length > 0 && <Text style={styles.subtitle}>Tap a route to preview.</Text>}
       </View>
+            <View style={styles.searchContainer}>
+        <TextInput
+          value={searchText}
+          onChangeText={setSearchText}
+          placeholder="Search saved paths"
+          placeholderTextColor={colors.muted}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+          clearButtonMode="while-editing"
+          style={styles.searchInput}
+        />
 
-      {savedPaths.length === 0 ? (
+        {searching && (
+          <ActivityIndicator
+            size="small"
+            color={colors.gold}
+            style={styles.searchSpinner}
+          />
+        )}
+      </View>
+
+      {displayedPaths.length === 0 ? (
         <View style={styles.emptyState}>
-          <View style={styles.emptyIconBadge}>
-            <LogoMark size={36} />
-          </View>
-          <Text style={styles.emptyTitle}>No saved paths yet</Text>
-          <Text style={styles.emptyBody}>
-            Build your first route on the map and save it here to run it again anytime.
+
+          <Text style={styles.emptyTitle}>
+            {searchText.trim() ? 'No matching paths' : 'No saved paths yet'}
           </Text>
-          <Pressable
-            onPress={() => navigation.navigate('PathBuilder')}
-            style={({ pressed }) => [styles.emptyCta, pressed && styles.pressed]}
-          >
-            <PlusIcon color="#1A1714" />
-            <Text style={styles.emptyCtaLabel}>Create your first path</Text>
-          </Pressable>
+
+          <Text style={styles.emptyBody}>
+            {searchText.trim()
+              ? `No saved paths matched "${searchText.trim()}".`
+              : 'Build your first route on the map and save it here to run it again anytime.'}
+          </Text>
+
+          {!searchText.trim() && (
+            <Pressable
+              onPress={() => navigation.navigate('PathBuilder')}
+              style={({ pressed }) => [
+                styles.emptyCta,
+                pressed && styles.pressed,
+              ]}
+            >
+              <PlusIcon color="#1A1714" />
+              <Text style={styles.emptyCtaLabel}>
+                Create your first path
+              </Text>
+            </Pressable>
+          )}
         </View>
       ) : (
         <FlatList
-          data={savedPaths}
+          data={displayedPaths}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           ListFooterComponent={
-            <Pressable
-              onPress={() => navigation.navigate('PathBuilder')}
-              style={({ pressed }) => [styles.newPathButton, pressed && styles.pressed]}
-            >
-              <PlusIcon color={colors.gold} size={15} />
-              <Text style={styles.newPathLabel}>New path</Text>
-            </Pressable>
+            searchText.trim() ? null : (
+              <Pressable
+                onPress={() => navigation.navigate('PathBuilder')}
+                style={({ pressed }) => [
+                  styles.newPathButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <PlusIcon color={colors.gold} size={15} />
+                <Text style={styles.newPathLabel}>New path</Text>
+              </Pressable>
+            )
           }
           renderItem={({ item }) => (
             <Pressable
@@ -434,4 +517,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-});
+  searchContainer: {
+    position: 'relative',
+    marginHorizontal: 16,
+    marginBottom: 8,
+  },
+
+  searchInput: {
+    height: 48,
+    paddingLeft: 16,
+    paddingRight: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(110,100,88,0.18)',
+    backgroundColor: colors.fieldBg,
+    color: colors.nearBlack,
+    fontSize: 15,
+  },
+
+  searchSpinner: {
+    position: 'absolute',
+    right: 16,
+    top: 14,
+  },
+  });

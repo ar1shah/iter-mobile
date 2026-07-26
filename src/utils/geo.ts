@@ -36,10 +36,24 @@ export function formatDuration(totalSeconds: number): string {
 
 // Given elapsed seconds and distance in miles, return a "M:SS" pace string.
 // Bails out to "--:--" if we don't have enough data yet to make this meaningful.
-export function formatPace(elapsedSeconds: number, distanceMiles: number): string {
-  if (elapsedSeconds <= 0 || distanceMiles <= 0) return '--:--';
-  const paceMinutes = elapsedSeconds / 60 / distanceMiles;
-  const whole = Math.floor(paceMinutes);
-  const remainderSeconds = Math.round((paceMinutes % 1) * 60);
-  return `${whole}:${String(remainderSeconds).padStart(2, '0')}`;
+export function formatPace(
+  elapsedSeconds: number,
+  distanceMiles: number,
+): string {
+  // Wait until the runner has traveled about 0.05 miles.
+  if (elapsedSeconds <= 0 || distanceMiles < 0.05) {
+    return '--:--';
+  }
+
+  const totalPaceSeconds = Math.round(elapsedSeconds / distanceMiles);
+
+  // Hide invalid or unrealistic paces above 99:59 per mile.
+  if (!Number.isFinite(totalPaceSeconds) || totalPaceSeconds >= 6000) {
+    return '--:--';
+  }
+
+  const minutes = Math.floor(totalPaceSeconds / 60);
+  const seconds = totalPaceSeconds % 60;
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }

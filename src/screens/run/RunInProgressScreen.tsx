@@ -142,11 +142,20 @@ export function RunInProgressScreen({ navigation, route }: Props) {
   const [traveledRoute, setTraveledRoute] = useState<LatLng[]>([]);
   const [initialCenter, setInitialCenter] = useState<LatLng | null>(null);
   const watchSubscription = useRef<Location.LocationSubscription | null>(null);
+  const [isStopped, setIsStopped] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Simple 1hz timer for the elapsed-time display.
+
   useEffect(() => {
-    const id = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
-    return () => clearInterval(id);
+    timerRef.current = setInterval(() => {
+      setElapsedSeconds((seconds) => seconds + 1);
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
   }, []);
 
   // Start watching GPS position as soon as the screen mounts, stop as soon
@@ -212,26 +221,43 @@ export function RunInProgressScreen({ navigation, route }: Props) {
     require ('../../../assets/sounds/finish-run.mp3')
   );
 
-const handleStop = async () => {
-  watchSubscription.current?.remove();
+  const handleStop = async () => {
+    // Prevent the Stop button from running more than once.
+    if (isStopped) return;
 
-  stopSound.volume = 0.5;
-  await stopSound.seekTo(0);
-  stopSound.play();
+    setIsStopped(true);
 
-  // Wait for the sound to finish (adjust time to your audio length)
-  setTimeout(() => {
-    navigation.replace('RunComplete', {
-      stats: {
-        elapsedSeconds,
-        distanceMiles,
-        route: traveledRoute,
-        path,
-        targetPaceSeconds,
-      },
-    });
-  }, 7000); // 1000 ms = 1 second
-};
+    // Freeze elapsed time.
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+
+    // Freeze GPS distance and route.
+    watchSubscription.current?.remove();
+    watchSubscription.current = null;
+
+    // These values are now frozen because their state is no longer updating.
+    const finalElapsedSeconds = elapsedSeconds;
+    const finalDistanceMiles = distanceMiles;
+    const finalRoute = [...traveledRoute];
+
+    stopSound.volume = 0.5;
+    await stopSound.seekTo(0);
+    stopSound.play();
+
+    setTimeout(() => {
+      navigation.replace('RunComplete', {
+        stats: {
+          elapsedSeconds: finalElapsedSeconds,
+          distanceMiles: finalDistanceMiles,
+          route: finalRoute,
+          path,
+          targetPaceSeconds,
+        },
+      });
+    }, 7000);
+  };
 
   if (!initialCenter) {
     return (
@@ -318,7 +344,15 @@ const handleStop = async () => {
       </SafeAreaView>
 
       <View style={styles.stopWrap}>
-        <Pressable onPress={handleStop} style={({ pressed }) => [styles.stopButton, pressed && styles.stopButtonPressed]}>
+        <Pressable
+          disabled={isStopped}
+          onPress={handleStop}
+          style={({ pressed }) => [
+            styles.stopButton,
+            pressed && styles.stopButtonPressed,
+            isStopped && styles.stopButtonDisabled,
+          ]}
+        >
           <View style={styles.stopSquare} />
         </Pressable>
         <Text style={styles.stopLabel}>Stop</Text>
@@ -455,5 +489,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.3,
+  },
+  stopButtonDisabled: {
+    opacity: 0.6,
   },
 });

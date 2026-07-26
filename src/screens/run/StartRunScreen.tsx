@@ -1,38 +1,54 @@
+
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
+import React, { useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LogoMark } from '../../components/icons';
 import { NavRow } from '../../components/NavRow';
+import { PaceInput } from '../../components/PaceInput';
 import { RouteThumbnail } from '../../components/RouteThumbnail';
 import { useRunData } from '../../context/RunDataContext';
 import type { AppStackParamList } from '../../navigation/types';
 import { colors } from '../../theme/colors';
-import { setAudioModeAsync,useAudioPlayer } from 'expo-audio';
-import { PaceInput } from '../../components/PaceInput';
 
 type Props = NativeStackScreenProps<AppStackParamList, 'StartRun'>;
 
 export function StartRunScreen({ navigation }: Props) {
   const { savedPaths } = useRunData();
-  const startSound = useAudioPlayer(
-    require ('../../../assets/sounds/Start.mp3')
-  );
-  const [targetPace, setTargetPace] = useState<number | null>(null);
-  
 
-   useEffect(() => {
+  const startSound = useAudioPlayer(
+    require('../../../assets/sounds/Start.mp3'),
+  );
+
+  const [targetPace, setTargetPace] = useState<number | null>(null);
+  const [searchText, setSearchText] = useState('');
+
+  const filteredPaths = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+
+    if (!query) {
+      return savedPaths;
+    }
+
+    return savedPaths.filter((path) =>
+      path.name.toLowerCase().includes(query),
+    );
+  }, [savedPaths, searchText]);
+
+  useEffect(() => {
     setAudioModeAsync({
       playsInSilentMode: true,
-      }).catch((error) => {
-        console.error('Failed to configure audio:', error);
-      });
-    }, []);
+    }).catch((error) => {
+      console.error('Failed to configure audio:', error);
+    });
+  }, []);
 
   async function handleStartRun(path: (typeof savedPaths)[number]) {
     if (targetPace === null) {
       return;
     }
+
     try {
       await startSound.seekTo(0);
       startSound.play();
@@ -47,12 +63,17 @@ export function StartRunScreen({ navigation }: Props) {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <SafeAreaView
+      style={styles.container}
+      edges={['top', 'bottom']}
+    >
       <NavRow onBack={() => navigation.goBack()} />
 
       <View style={styles.header}>
         <Text style={styles.title}>Choose a path to run</Text>
-        <Text style={styles.subtitle}>Pick a saved route and hit Start.</Text>
+        <Text style={styles.subtitle}>
+          Pick a saved route and hit Start.
+        </Text>
       </View>
 
       <View style={styles.paceSection}>
@@ -71,41 +92,84 @@ export function StartRunScreen({ navigation }: Props) {
         <Text style={styles.paceUnit}>minutes per mile</Text>
       </View>
 
+      {savedPaths.length > 0 && (
+        <View style={styles.searchContainer}>
+          <TextInput
+            value={searchText}
+            onChangeText={setSearchText}
+            placeholder="Search saved paths"
+            placeholderTextColor={colors.muted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+            style={styles.searchInput}
+          />
+        </View>
+      )}
+
       {savedPaths.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No saved paths yet</Text>
+          <Text style={styles.emptyTitle}>
+            No saved paths yet
+          </Text>
+
           <Text style={styles.emptyBody}>
-            Head over to "Create a Path" on the Home tab to draw your first route before starting a run.
+            Head over to "Create a Path" on the Home tab to draw
+            your first route before starting a run.
+          </Text>
+        </View>
+      ) : filteredPaths.length === 0 ? (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>
+            No matching paths
+          </Text>
+
+          <Text style={styles.emptyBody}>
+            No saved paths matched "{searchText.trim()}".
           </Text>
         </View>
       ) : (
         <FlatList
-          data={savedPaths}
+          data={filteredPaths}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <View style={styles.pathRow}>
               <RouteThumbnail points={item.points} />
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={styles.pathName} numberOfLines={1}>
+
+              <View style={styles.pathDetails}>
+                <Text
+                  style={styles.pathName}
+                  numberOfLines={1}
+                >
                   {item.name}
                 </Text>
+
                 <View style={styles.pathMetaRow}>
-                  <Text style={styles.pathDistance}>{item.distanceMiles.toFixed(1)} mi</Text>
-                  {/* <View style={styles.dot} />
-                  <Text style={styles.pathPoints}>{item.points.length} pts</Text> */}
+                  <Text style={styles.pathDistance}>
+                    {item.distanceMiles.toFixed(1)} mi
+                  </Text>
                 </View>
               </View>
+
               <Pressable
                 disabled={targetPace === null}
                 onPress={() => handleStartRun(item)}
                 style={({ pressed }) => [
                   styles.startButton,
-                  targetPace === null && styles.startButtonDisabled,
-                  pressed && targetPace !== null && styles.pressed,
+                  targetPace === null &&
+                    styles.startButtonDisabled,
+                  pressed &&
+                    targetPace !== null &&
+                    styles.pressed,
                 ]}
               >
-                <LogoMark size={11} color="#1A1714" />
+                <LogoMark
+                  size={11}
+                  color="#1A1714"
+                />
                 <Text style={styles.startLabel}>Start</Text>
               </Pressable>
             </View>
@@ -115,7 +179,6 @@ export function StartRunScreen({ navigation }: Props) {
     </SafeAreaView>
   );
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -137,6 +200,53 @@ const styles = StyleSheet.create({
     color: colors.muted,
     fontSize: 13,
     marginBottom: 16,
+  },
+  paceSection: {
+    marginHorizontal: 20,
+    marginBottom: 14,
+    padding: 18,
+    borderRadius: 18,
+    backgroundColor: colors.fieldBg,
+    borderWidth: 1.5,
+    borderColor: 'rgba(110,100,88,0.14)',
+    alignItems: 'center',
+  },
+  paceTitle: {
+    color: colors.nearBlack,
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+  paceLabels: {
+    width: 218,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 13,
+    marginBottom: 6,
+  },
+  paceLabel: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  paceUnit: {
+    color: colors.muted,
+    fontSize: 12,
+    marginTop: 8,
+  },
+  searchContainer: {
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  searchInput: {
+    height: 48,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: 'rgba(110,100,88,0.18)',
+    backgroundColor: colors.fieldBg,
+    color: colors.nearBlack,
+    fontSize: 15,
   },
   emptyState: {
     paddingHorizontal: 32,
@@ -171,6 +281,10 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 10,
   },
+  pathDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
   pathName: {
     color: colors.nearBlack,
     fontSize: 14,
@@ -188,17 +302,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  dot: {
-    width: 3,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.muted,
-  },
-  pathPoints: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '500',
-  },
   startButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,6 +311,9 @@ const styles = StyleSheet.create({
     borderRadius: 99,
     backgroundColor: colors.gold,
   },
+  startButtonDisabled: {
+    opacity: 0.4,
+  },
   pressed: {
     opacity: 0.85,
   },
@@ -216,40 +322,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  paceSection: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 18,
-    borderRadius: 18,
-    backgroundColor: colors.fieldBg,
-    borderWidth: 1.5,
-    borderColor: 'rgba(110,100,88,0.14)',
-    alignItems: 'center',
-  },
-  paceTitle: {
-    color: colors.nearBlack,
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 14,
-  },
-  paceLabels: {
-    width: 218,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 13,
-    marginBottom: 6,
-  },
-  paceLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  paceUnit: {
-    color: colors.muted,
-    fontSize: 12,
-    marginTop: 8,
-  },
-  startButtonDisabled: {
-    opacity: 0.4,
-  },
 });
+
