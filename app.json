@@ -39,7 +39,13 @@
         }
       ],
       "expo-secure-store",
-      "expo-audio"
-    ]
+      "expo-audio",
+      "expo-asset"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "4ca8767f-340d-4b20-b457-09f71a5f6657"
+      }
+    }
   }
 }
