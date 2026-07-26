@@ -210,16 +210,17 @@ export function RunInProgressScreen({ navigation, route }: Props) {
   const progress = Math.min(distanceMiles / plannedMiles, 1);
   const currentPosition = traveledRoute[traveledRoute.length - 1] ?? path.points[0];
   const currentPaceSeconds =
-    distanceMiles >= 0.02
+    distanceMiles >= 0.05
       ? elapsedSeconds / distanceMiles
       : null;
-  const paceColor = getPaceColor(
-    currentPaceSeconds,
-    targetPaceSeconds,
-  );
-  const stopSound = useAudioPlayer(
-    require ('../../../assets/sounds/finish-run.mp3')
-  );
+
+  const paceColor =
+    currentPaceSeconds === null
+      ? colors.nearBlack
+      : getPaceColor(currentPaceSeconds, targetPaceSeconds);
+    const stopSound = useAudioPlayer(
+      require ('../../../assets/sounds/finish-run.mp3')
+    );
 
   const handleStop = async () => {
     // Prevent the Stop button from running more than once.
