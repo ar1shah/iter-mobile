@@ -16,6 +16,7 @@ type Props = NativeStackScreenProps<AppStackParamList, 'StartRun'>;
 
 export function StartRunScreen({ navigation }: Props) {
   const { savedPaths } = useRunData();
+  const [isStarting, setIsStarting] = useState(false);
 
   const startSound = useAudioPlayer(
     require('../../../assets/sounds/Start.mp3'),
@@ -45,21 +46,32 @@ export function StartRunScreen({ navigation }: Props) {
   }, []);
 
   async function handleStartRun(path: (typeof savedPaths)[number]) {
-    if (targetPace === null) {
+    if (targetPace === null || isStarting) {
       return;
     }
+
+    setIsStarting(true);
 
     try {
       await startSound.seekTo(0);
       startSound.play();
-    } catch (error) {
-      console.error('Failed to play audio:', error);
-    }
 
-    navigation.navigate('RunInProgress', {
-      path,
-      targetPaceSeconds: targetPace,
-    });
+      const durationSeconds = startSound.duration;
+
+      if (durationSeconds > 0) {
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, durationSeconds * 1000);
+        });
+      }
+
+      navigation.navigate('RunInProgress', {
+        path,
+        targetPaceSeconds: targetPace,
+      });
+    } catch (error) {
+      console.error('Failed to start run:', error);
+      setIsStarting(false);
+    }
   }
 
   return (
@@ -155,22 +167,23 @@ export function StartRunScreen({ navigation }: Props) {
               </View>
 
               <Pressable
-                disabled={targetPace === null}
+                disabled={targetPace === null || isStarting}
                 onPress={() => handleStartRun(item)}
                 style={({ pressed }) => [
                   styles.startButton,
-                  targetPace === null &&
+                  (targetPace === null || isStarting) &&
                     styles.startButtonDisabled,
                   pressed &&
                     targetPace !== null &&
+                    !isStarting &&
                     styles.pressed,
                 ]}
               >
-                <LogoMark
-                  size={11}
-                  color="#1A1714"
-                />
-                <Text style={styles.startLabel}>Start</Text>
+                <LogoMark size={11} color="#1A1714" />
+
+                <Text style={styles.startLabel}>
+                  {isStarting ? 'Starting...' : 'Start'}
+                </Text>
               </Pressable>
             </View>
           )}
