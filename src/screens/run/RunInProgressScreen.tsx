@@ -144,9 +144,15 @@ export function RunInProgressScreen({ navigation, route }: Props) {
   const watchSubscription = useRef<Location.LocationSubscription | null>(null);
   const [isStopped, setIsStopped] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(false);
 
 
   useEffect(() => {
+    if (isPaused || isStopped) {
+      return;
+    }
+
     timerRef.current = setInterval(() => {
       setElapsedSeconds((seconds) => seconds + 1);
     }, 1000);
@@ -154,9 +160,10 @@ export function RunInProgressScreen({ navigation, route }: Props) {
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
     };
-  }, []);
+  }, [isPaused, isStopped]);
 
   // Start watching GPS position as soon as the screen mounts, stop as soon
   // as it unmounts (either via Stop button or navigating away some other way).
@@ -172,11 +179,20 @@ export function RunInProgressScreen({ navigation, route }: Props) {
         setInitialCenter(startingPoint);
       }
 
-      watchSubscription.current = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 1000, distanceInterval: 3 },
+     watchSubscription.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.High,
+          timeInterval: 1000,
+          distanceInterval: 3,
+        },
         (position) => {
-          if (cancelled) return;
-          const point = { latitude: position.coords.latitude, longitude: position.coords.longitude };
+          if (cancelled || isPausedRef.current) return;
+
+          const point = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          };
+
           setTraveledRoute((prev) => [...prev, point]);
           setInitialCenter((prev) => prev ?? point);
         },
@@ -191,6 +207,16 @@ export function RunInProgressScreen({ navigation, route }: Props) {
     // doesn't happen mid-run - fine to only depend on identity here.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handlePauseToggle = () => {
+    if (isStopped) return;
+
+    setIsPaused((currentlyPaused) => {
+      const nextPausedState = !currentlyPaused;
+      isPausedRef.current = nextPausedState;
+      return nextPausedState;
+    });
+  };
 
   const targetDistanceMiles =
     targetPaceSeconds > 0
@@ -344,19 +370,47 @@ export function RunInProgressScreen({ navigation, route }: Props) {
         </View>
       </SafeAreaView>
 
-      <View style={styles.stopWrap}>
-        <Pressable
-          disabled={isStopped}
-          onPress={handleStop}
-          style={({ pressed }) => [
-            styles.stopButton,
-            pressed && styles.stopButtonPressed,
-            isStopped && styles.stopButtonDisabled,
-          ]}
-        >
-          <View style={styles.stopSquare} />
-        </Pressable>
-        <Text style={styles.stopLabel}>Stop</Text>
+      <View style={styles.controlsWrap}>
+        <View style={styles.controlItem}>
+          <Pressable
+            disabled={isStopped}
+            onPress={handlePauseToggle}
+            style={({ pressed }) => [
+              styles.pauseButton,
+              pressed && styles.controlButtonPressed,
+              isStopped && styles.controlButtonDisabled,
+            ]}
+          >
+            {isPaused ? (
+              <Text style={styles.resumeIcon}>▶</Text>
+            ) : (
+              <View style={styles.pauseIcon}>
+                <View style={styles.pauseBar} />
+                <View style={styles.pauseBar} />
+              </View>
+            )}
+          </Pressable>
+
+          <Text style={styles.controlLabel}>
+            {isPaused ? 'Resume' : 'Pause'}
+          </Text>
+        </View>
+
+        <View style={styles.controlItem}>
+          <Pressable
+            disabled={isStopped}
+            onPress={handleStop}
+            style={({ pressed }) => [
+              styles.stopButton,
+              pressed && styles.controlButtonPressed,
+              isStopped && styles.controlButtonDisabled,
+            ]}
+          >
+            <View style={styles.stopSquare} />
+          </Pressable>
+
+          <Text style={styles.controlLabel}>Stop</Text>
+        </View>
       </View>
     </View>
   );
@@ -493,5 +547,61 @@ const styles = StyleSheet.create({
   },
   stopButtonDisabled: {
     opacity: 0.6,
+  },
+  controlsWrap: {
+    position: 'absolute',
+    bottom: 44,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 32,
+  },
+
+  controlItem: {
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  pauseButton: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.gold,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+  },
+
+  pauseIcon: {
+    flexDirection: 'row',
+    gap: 7,
+  },
+
+  pauseBar: {
+    width: 7,
+    height: 24,
+    borderRadius: 2,
+    backgroundColor: '#fff',
+  },
+
+  resumeIcon: {
+    color: '#fff',
+    fontSize: 28,
+    marginLeft: 3,
+  },
+
+  controlButtonPressed: {
+    opacity: 0.85,
+  },
+
+  controlButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  controlLabel: {
+    color: 'rgba(245,240,232,0.9)',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });
